@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WiFi Lab: Конвертер и Перебор</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; padding: 20px; max-width: 900px; margin: 0 auto; background-color: #f4f7f6; color: #333; }
+       .step { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        h1 { color: #1a1a1a; text-align: center; }
+        h2 { border-bottom: 2px solid #e0e0e0; padding-bottom: 10px; margin-top: 0; }
+        .btn { display: inline-block; background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; border: none; cursor: pointer; font-size: 16px; transition: background 0.2s; text-align: center; }
+        .btn:hover { background-color: #0056b3; }
+        .btn-secondary { background-color: #6c757d; }
+        .btn-secondary:hover { background-color: #5a6268; }
+        .alert { padding: 15px; border-radius: 8px; margin: 15px 0; }
+        .alert-info { background-color: #e7f3ff; border-left: 5px solid #007bff; }
+        .alert-warning { background-color: #fff3cd; border-left: 5px solid #ffc107; }
+        .alert-success { background-color: #d4edda; border-left: 5px solid #28a745; }
+        pre { background: #2d2d2d; color: #f8f8f2; padding: 15px; border-radius: 8px; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word; font-size: 14px; }
+        input[type="file"] { display: block; margin: 10px 0; padding: 10px; border: 2px dashed #ccc; border-radius: 8px; width: 100%; box-sizing: border-box; }
+        .hidden { display: none; }
+        .copy-btn { margin-top: 10px; }
+        .footer { text-align: center; margin-top: 30px; font-size: 14px; color: #666; }
+    </style>
+</head>
+<body>
+
+    <h1>🔐 WiFi Lab</h1>
+    <p style="text-align:center;">Учебный стенд: конвертация захвата трафика и подготовка к перебору пароля.</p>
+
+    <!-- ШАГ 1: КОНВЕРТАЦИЯ -->
+    <div class="step">
+        <h2>Шаг 1: Конвертация .pcap в .hc22000</h2>
+        <p>Загрузи свой файл захвата (`.pcap`, `.cap`, `.pcapng`). Библиотека <b>capJS</b> извлечёт из него данные рукопожатия и выдаст строку для перебора.</p>
+        
+        <div class="alert alert-warning">
+            <strong>Внимание:</strong> Файл <code>cap.min.js</code> должен лежать в той же папке, что и этот HTML-файл. Если сайт пишет «библиотека не найдена», проверь это.
+        </div>
+
+        <input type="file" id="pcap-file" accept=".pcap,.cap,.pcapng">
+        <button id="convert-btn" class="btn">Конвертировать</button>
+        
+        <div id="result-area" class="hidden">
+            <h3>Результат (формат .hc22000):</h3>
+            <pre id="hc22000-output"></pre>
+            <button id="copy-btn" class="btn btn-secondary copy-btn">📋 Скопировать хэш</button>
+        </div>
+    </div>
+
+    <!-- ШАГ 2: ПЕРЕБОР -->
+    <div class="step">
+        <h2>Шаг 2: Перебор пароля</h2>
+        <p>Скопируй полученный хэш (или используй исходный `.pcap`) и переходи на инструмент <b>aircrack-js</b>. Он работает в браузере и поддерживает GPU.</p>
+        
+        <div class="alert alert-info">
+            <strong>Инструкция:</strong>
+            <ol>
+                <li>Нажми кнопку ниже, чтобы открыть <b>aircrack-js</b>.</li>
+                <li>Загрузи туда свой `.pcap` файл или вставь скопированную строку `.hc22000` в поле для хэшей.</li>
+                <li>Выбери встроенный словарь (SecLists) или загрузи свой `.txt` файл со списком паролей.</li>
+                <li>Нажми <b>Start</b> и жди результат.</li>
+            </ol>
+            <p><i>Совет: для учебного слабого пароля (например, `12345678`) результат появится за секунды.</i></p>
+        </div>
+        
+        <a href="https://georg95.github.io/aircrack-js/" target="_blank" rel="noopener" class="btn">Перейти к aircrack-js для перебора</a>
+    </div>
+
+    <div class="footer">
+        Учебный проект. Использовать только для захвата трафика собственной лабораторной сети.
+    </div>
+
+    <!-- ПОДКЛЮЧЕНИЕ БИБЛИОТЕКИ -->
+    <script src="cap.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const fileInput = document.getElementById('pcap-file');
+            const convertBtn = document.getElementById('convert-btn');
+            const resultArea = document.getElementById('result-area');
+            const outputPre = document.getElementById('hc22000-output');
+            const copyBtn = document.getElementById('copy-btn');
+
+            // Проверка, загрузилась ли библиотека
+            if (typeof CapJS === 'undefined') {
+                convertBtn.disabled = true;
+                convertBtn.textContent = 'Ошибка: cap.min.js не найден';
+                convertBtn.style.backgroundColor = '#dc3545';
+                return;
+            }
+
+            convertBtn.addEventListener('click', async () => {
+                const file = fileInput.files[0];
+                if (!file) {
+                    alert('Пожалуйста, выбери файл .pcap, .cap или .pcapng');
+                    return;
+                }
+
+                convertBtn.disabled = true;
+                convertBtn.textContent = 'Конвертация...';
+                resultArea.classList.add('hidden');
+
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    
+                    // Вызов функции конвертации из capJS
+                    const results = await CapJS.convert(arrayBuffer);
+                    
+                    if (!results || !results.hc22000 || results.hc22000.length === 0) {
+                        throw new Error('В файле не найдено рукопожатие (handshake) или PMKID. Возможно, файл не содержит нужных данных.');
+                    }
+
+                    // Показываем результат (может быть несколько строк, объединяем через перенос)
+                    outputPre.textContent = results.hc22000.join('\n');
+                    resultArea.classList.remove('hidden');
+
+                } catch (error) {
+                    console.error(error);
+                    alert('Ошибка конвертации: ' + error.message);
+                } finally {
+                    convertBtn.disabled = false;
+                    convertBtn.textContent = 'Конвертировать';
+                }
+            });
+
+            // Кнопка копирования
+            copyBtn.addEventListener('click', () => {
+                const text = outputPre.textContent;
+                navigator.clipboard.writeText(text).then(() => {
+                    copyBtn.textContent = '✅ Скопировано!';
+                    setTimeout(() => { copyBtn.textContent = '📋 Скопировать хэш'; }, 2000);
+                }).catch(err => {
+                    alert('Не удалось скопировать: ' + err);
+                });
+            });
+        });
+    </script>
+</body>
+</html>
